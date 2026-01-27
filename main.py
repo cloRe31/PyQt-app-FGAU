@@ -13,7 +13,7 @@ class MainWindow(QWidget):
         HLayout = QHBoxLayout(self)
         LVLayout = QVBoxLayout()
         RVLayout = QVBoxLayout()
-
+        
 
         operation_combobox = QComboBox()
         operation_combobox.addItems(["Расход", "Поставка"])
@@ -23,6 +23,7 @@ class MainWindow(QWidget):
         )
         operation_combobox.setMinimumWidth(200)
         operation_combobox.setMaximumWidth(400)
+
         container_combobox = QHBoxLayout()
         container_combobox.addStretch()
         container_combobox.addWidget(operation_combobox)
@@ -31,16 +32,50 @@ class MainWindow(QWidget):
         container_combobox.setStretch(1, 6)
         container_combobox.setStretch(2, 1)
         LVLayout.addLayout(container_combobox)
+
+        pages = Pages()
+        RVLayout.addWidget(pages)
+
+        operation_combobox.currentTextChanged.connect(pages.setPage)
         
-
-        Label = QLabel("авироивырп")
-        RVLayout.addWidget(Label, alignment=Qt.AlignmentFlag.AlignHCenter)
-
 
         HLayout.addLayout(LVLayout)
         HLayout.addLayout(RVLayout)
         HLayout.setStretch(0, 1)
         HLayout.setStretch(1, 1)
+
+
+class Pages(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.stack = QStackedWidget()
+        PageLayout = QVBoxLayout(self)
+        PageLayout.addWidget(self.stack)
+
+        #Страница расхода
+        ExpensesPage = QWidget()
+        ExpensesPageLayout = QVBoxLayout(ExpensesPage)
+        ExpensesPageLayout.addWidget(QLabel("Расход"))
+
+        #Страница поступления
+        SupplyPage = QWidget()
+        SupplyPageLayout = QVBoxLayout(SupplyPage)
+        SupplyPageLayout.addWidget(QLabel("Поставка"))
+
+        self.pagesDict = {
+            "Расход": ExpensesPage,
+            "Поставка": SupplyPage
+        }
+
+        self.stack.addWidget(ExpensesPage)
+        self.stack.addWidget(SupplyPage)
+
+        
+
+    def setPage(self, name):
+        self.stack.setCurrentWidget(self.pagesDict[name])
+        
 
 
 app = QApplication(sys.argv)
