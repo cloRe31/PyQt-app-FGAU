@@ -33,10 +33,10 @@ class MainWindow(QWidget):
         container_combobox.setStretch(2, 1)
         LVLayout.addLayout(container_combobox)
 
-        pages = Pages()
-        RVLayout.addWidget(pages)
+        self.pages = Pages()
+        RVLayout.addWidget(self.pages)
 
-        operation_combobox.currentTextChanged.connect(pages.setPage)
+        operation_combobox.currentTextChanged.connect(self.pages.setPage)
         
 
         HLayout.addLayout(LVLayout)
@@ -53,28 +53,39 @@ class Pages(QWidget):
         PageLayout = QVBoxLayout(self)
         PageLayout.addWidget(self.stack)
 
-        #Страница расхода
-        ExpensesPage = QWidget()
-        ExpensesPageLayout = QVBoxLayout(ExpensesPage)
-        ExpensesPageLayout.addWidget(QLabel("Расход"))
-
-        #Страница поступления
-        SupplyPage = QWidget()
-        SupplyPageLayout = QVBoxLayout(SupplyPage)
-        SupplyPageLayout.addWidget(QLabel("Поставка"))
-
         self.pagesDict = {
-            "Расход": ExpensesPage,
-            "Поставка": SupplyPage
+            "Расход": ExpensesPage(),
+            "Поставка": SupplyPage()
         }
 
-        self.stack.addWidget(ExpensesPage)
-        self.stack.addWidget(SupplyPage)
-
+        for page in self.pagesDict.values():
+            self.stack.addWidget(page)
         
-
     def setPage(self, name):
         self.stack.setCurrentWidget(self.pagesDict[name])
+
+class ExpensesPage(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        VLayout = QVBoxLayout(self)
+        HLayout = QHBoxLayout()
+
+        HLayout.addStretch()
+        HLayout.addWidget(QLabel("Расходы"))
+        HLayout.addStretch()
+
+        HLayout.setStretch(0, 2)
+        HLayout.setStretch(1, 7)
+        HLayout.setStretch(2, 1)
+        VLayout.addLayout(HLayout)
+
+class SupplyPage(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        VLayout = QVBoxLayout(self)
+        VLayout.addWidget(QLabel("Поставка"))
         
 
 
