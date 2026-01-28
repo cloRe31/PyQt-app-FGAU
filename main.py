@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QComboBox, QVBoxLayout, QHBoxLayout, QStackedWidget, QSizePolicy
+from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QComboBox, QVBoxLayout, QHBoxLayout, QStackedWidget, QLineEdit, QPushButton, QSizePolicy)
 from PyQt6.QtCore import Qt
 import sys
 from openpyxl import Workbook
