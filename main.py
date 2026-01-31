@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QComboBox, QVBoxLayout, QHBoxLayout, QGroupBox, QStackedWidget, QLineEdit, QPushButton, QSizePolicy)
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QIntValidator
 import sys
 from openpyxl import Workbook
@@ -103,20 +103,50 @@ class ExpensesPage(QWidget):
         action_layout.addWidget(write_btn)
 
         self.ApproveText = QLabel("Расход записан")
+        self.ApproveText.setStyleSheet("color: green; font-weight: bold;")
         self.ApproveText.hide()
         action_layout.addWidget(self.ApproveText)
 
-        write_btn.clicked.connect(self.btn_clicked)
+        write_btn.clicked.connect(self.btnClicked)
 
         main_layout.addWidget(action_group)
         main_layout.addStretch()
 
-    def btn_clicked(self):
+    def btnClicked(self):
+        name = self.NameLine.text().strip()
+        quantity = self.QuantityLine.text()
+
+        if not name and not quantity:
+            self.showMessage("Введите данные", "red")
+            return
+
+        if not name:
+            self.showMessage("Введите название картриджа", "red")
+            return
+
+        if not quantity:
+            self.showMessage("Введите количество", "red")
+            return
+
+
+        quantity = int(quantity) if quantity else 0
+
+        #далее логика с Excel
+
+        self.showMessage("Расход записан", "green")
+
+        self.NameLine.clear()
+        self.QuantityLine.clear()
+
+    def showMessage(self, text, color):
+        self.ApproveText.hide()
+        self.ApproveText.setText(text)
+        self.ApproveText.setStyleSheet(f"color: {color}; font-weight: bold;")
         self.ApproveText.show()
 
-        text = self.QuantityLine.text()
-        quantity = int(text) if text else 0
-        #далее логика с Excel
+        QTimer.singleShot(2_000, self.ApproveText.hide)
+
+
 
 
 class SupplyPage(QWidget):
