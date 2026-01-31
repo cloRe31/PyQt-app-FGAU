@@ -1,5 +1,6 @@
-from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QComboBox, QVBoxLayout, QHBoxLayout, QStackedWidget, QLineEdit, QPushButton, QSizePolicy)
+from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QComboBox, QVBoxLayout, QHBoxLayout, QGroupBox, QStackedWidget, QLineEdit, QPushButton, QSizePolicy)
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIntValidator
 import sys
 from openpyxl import Workbook
 
@@ -13,7 +14,8 @@ class MainWindow(QWidget):
         HLayout = QHBoxLayout(self)
         LVLayout = QVBoxLayout()
         RVLayout = QVBoxLayout()
-        
+
+        container_combobox = QHBoxLayout()
 
         operation_combobox = QComboBox()
         operation_combobox.addItems(["Расход", "Поставка"])
@@ -24,10 +26,10 @@ class MainWindow(QWidget):
         operation_combobox.setMinimumWidth(200)
         operation_combobox.setMaximumWidth(400)
 
-        container_combobox = QHBoxLayout()
         container_combobox.addStretch()
         container_combobox.addWidget(operation_combobox)
         container_combobox.addStretch()
+
         container_combobox.setStretch(0, 1)
         container_combobox.setStretch(1, 6)
         container_combobox.setStretch(2, 1)
@@ -38,7 +40,6 @@ class MainWindow(QWidget):
 
         operation_combobox.currentTextChanged.connect(self.pages.setPage)
         
-
         HLayout.addLayout(LVLayout)
         HLayout.addLayout(RVLayout)
         HLayout.setStretch(0, 1)
@@ -64,28 +65,66 @@ class Pages(QWidget):
     def setPage(self, name):
         self.stack.setCurrentWidget(self.pagesDict[name])
 
+
 class ExpensesPage(QWidget):
     def __init__(self):
         super().__init__()
 
-        VLayout = QVBoxLayout(self)
-        HLayout = QHBoxLayout()
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(15)
+        main_layout.addStretch()
 
-        HLayout.addStretch()
-        HLayout.addWidget(QLabel("Расходы"))
-        HLayout.addStretch()
+        # ===== Блок: Название картриджа =====
+        name_group = QGroupBox("Название картриджа")
+        name_layout = QVBoxLayout(name_group)
 
-        HLayout.setStretch(0, 2)
-        HLayout.setStretch(1, 7)
-        HLayout.setStretch(2, 1)
-        VLayout.addLayout(HLayout)
+        name_layout.addWidget(QLabel("Введите название картриджа:"))
+        self.NameLine = QLineEdit()
+        name_layout.addWidget(self.NameLine)
+
+        main_layout.addWidget(name_group)
+
+        # ===== Блок: Количество =====
+        quantity_group = QGroupBox("Количество")
+        quantity_layout = QVBoxLayout(quantity_group)
+
+        quantity_layout.addWidget(QLabel("Введите количество:"))
+        self.QuantityLine = QLineEdit()
+        self.QuantityLine.setValidator(QIntValidator(0, 1_000_000))
+        quantity_layout.addWidget(self.QuantityLine)
+
+        main_layout.addWidget(quantity_group)
+
+        # ===== Блок: Действие =====
+        action_group = QGroupBox("Действие")
+        action_layout = QVBoxLayout(action_group)
+
+        write_btn = QPushButton("Записать")
+        action_layout.addWidget(write_btn)
+
+        self.ApproveText = QLabel("Расход записан")
+        self.ApproveText.hide()
+        action_layout.addWidget(self.ApproveText)
+
+        write_btn.clicked.connect(self.btn_clicked)
+
+        main_layout.addWidget(action_group)
+        main_layout.addStretch()
+
+    def btn_clicked(self):
+        self.ApproveText.show()
+
+        text = self.QuantityLine.text()
+        quantity = int(text) if text else 0
+        #далее логика с Excel
+
 
 class SupplyPage(QWidget):
     def __init__(self):
         super().__init__()
 
         VLayout = QVBoxLayout(self)
-        VLayout.addWidget(QLabel("Поставка"))
+
         
 
 
