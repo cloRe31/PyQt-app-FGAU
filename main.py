@@ -75,7 +75,7 @@ class ExpensesPage(QWidget):
         main_layout.addStretch()
 
         # ===== Блок: Название картриджа =====
-        name_group = QGroupBox("Название картриджа")
+        name_group = QGroupBox()
         name_layout = QVBoxLayout(name_group)
 
         name_layout.addWidget(QLabel("Введите название картриджа:"))
@@ -85,7 +85,7 @@ class ExpensesPage(QWidget):
         main_layout.addWidget(name_group)
 
         # ===== Блок: Количество =====
-        quantity_group = QGroupBox("Количество")
+        quantity_group = QGroupBox()
         quantity_layout = QVBoxLayout(quantity_group)
 
         quantity_layout.addWidget(QLabel("Введите количество:"))
@@ -96,7 +96,8 @@ class ExpensesPage(QWidget):
         main_layout.addWidget(quantity_group)
 
         # ===== Блок: Действие =====
-        action_group = QGroupBox("Действие")
+        action_group = QGroupBox()
+        action_group.setStyleSheet("border: none")
         action_layout = QVBoxLayout(action_group)
 
         write_btn = QPushButton("Записать")
@@ -111,6 +112,13 @@ class ExpensesPage(QWidget):
 
         main_layout.addWidget(action_group)
         main_layout.addStretch()
+        
+        for group in (name_group, quantity_group, action_group):
+            group.setStyleSheet("""
+                QGroupBox {
+                    border: none;
+                }
+            """)
 
     def btnClicked(self):
         name = self.NameLine.text().strip()
@@ -147,16 +155,58 @@ class ExpensesPage(QWidget):
         QTimer.singleShot(2_000, self.ApproveText.hide)
 
 
-
-
 class SupplyPage(QWidget):
     def __init__(self):
         super().__init__()
 
-        VLayout = QVBoxLayout(self)
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(15)
+        main_layout.addStretch()
 
+        # ===== Блок: Название =====
+        name_group = QGroupBox()
+        name_layout = QVBoxLayout(name_group)
+
+        name_layout.addWidget(QLabel("Выберите название картриджа"))
+        self.NameList = QComboBox()
+        self.NameList.addItems(["Asus", "Pantum", "HP", "Добавить новый"])
+        name_layout.addWidget(self.NameList)
+
+        main_layout.addWidget(name_group)
+
+        # ===== Блок: Количество =====
+        quantity_group = QGroupBox()
+        quantity_layout = QVBoxLayout(quantity_group)
+
+        quantity_layout.addWidget(QLabel("Введите количество"))
+        self.QuantityLine = QLineEdit()
+        self.QuantityLine.setValidator(QIntValidator(0, 1_000_000))
+        quantity_layout.addWidget(self.QuantityLine)
+
+        main_layout.addWidget(quantity_group)
+
+        # ===== Блок: Действие =====
+        action_group = QGroupBox()
+        action_layout = QVBoxLayout(action_group)
+
+        write_btn = QPushButton("Записать")
+        action_layout.addWidget(write_btn)
+
+        self.ApproveText = QLabel("Расход записан")
+        self.ApproveText.setStyleSheet("color: green; font-weight: bold;")
+        self.ApproveText.hide()
+        action_layout.addWidget(self.ApproveText)
+
+        main_layout.addWidget(action_group)
+        main_layout.addStretch()
+
+        for group in (name_group, quantity_group, action_group):
+            group.setStyleSheet("""
+                QGroupBox {
+                    border: none;
+                }
+            """)
         
-
 
 app = QApplication(sys.argv)
 window = MainWindow()
