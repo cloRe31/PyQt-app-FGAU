@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QComboBox, QVBoxLayo
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QIntValidator
 import sys
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -206,6 +206,40 @@ class SupplyPage(QWidget):
                     border: none;
                 }
             """)
+
+    def btnClicked(self):
+        name = self.NameLine.text().strip()
+        quantity = self.QuantityLine.text()
+
+        if not name and not quantity:
+            self.showMessage("Введите данные", "red")
+            return
+
+        if not name:
+            self.showMessage("Введите название картриджа", "red")
+            return
+
+        if not quantity:
+            self.showMessage("Введите количество", "red")
+            return
+
+
+        quantity = int(quantity) if quantity else 0
+
+        #далее логика с Excel
+
+        self.showMessage("Расход записан", "green")
+
+        self.NameLine.clear()
+        self.QuantityLine.clear()
+
+    def showMessage(self, text, color):
+        self.ApproveText.hide()
+        self.ApproveText.setText(text)
+        self.ApproveText.setStyleSheet(f"color: {color}; font-weight: bold;")
+        self.ApproveText.show()
+
+        QTimer.singleShot(2_000, self.ApproveText.hide)
         
 
 app = QApplication(sys.argv)
