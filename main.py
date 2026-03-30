@@ -97,6 +97,7 @@ class ExpensesPage(QWidget):
         self.QuantityLine = QLineEdit()
         self.QuantityLine.setValidator(QIntValidator(0, 1_000_000))
         quantity_layout.addWidget(self.QuantityLine)
+        # Добавить дату расхода
 
         main_layout.addWidget(quantity_group)
 
@@ -189,6 +190,7 @@ class SupplyPage(QWidget):
         self.QuantityLine = QLineEdit()
         self.QuantityLine.setValidator(QIntValidator(0, 1_000_000))
         quantity_layout.addWidget(self.QuantityLine)
+        # Добавить дату поставки
 
         main_layout.addWidget(quantity_group)
 
