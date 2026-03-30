@@ -291,6 +291,7 @@ class DatabaseManager():
         return self.cartridges
         
 
+
 app = QApplication(sys.argv)
 window = MainWindow()
 window.show()
