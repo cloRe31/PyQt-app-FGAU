@@ -1,8 +1,9 @@
-from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QComboBox, QVBoxLayout, QHBoxLayout, QGroupBox, QStackedWidget, QLineEdit, QPushButton, QSizePolicy)
+from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QComboBox, QVBoxLayout, QHBoxLayout, 
+                             QGroupBox, QStackedWidget, QLineEdit, QPushButton, QSizePolicy)
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QIntValidator
 import sys
-from openpyxl import Workbook, load_workbook
+import sqlite3
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -35,7 +36,8 @@ class MainWindow(QWidget):
         container_combobox.setStretch(2, 1)
         LVLayout.addLayout(container_combobox)
 
-        self.pages = Pages()
+        self.db = DatabaseManager()
+        self.pages = Pages(self.db)
         RVLayout.addWidget(self.pages)
 
         operation_combobox.currentTextChanged.connect(self.pages.setPage)
@@ -47,16 +49,17 @@ class MainWindow(QWidget):
 
 
 class Pages(QWidget):
-    def __init__(self):
+    def __init__(self, db):
         super().__init__()
+        self.db = db
 
         self.stack = QStackedWidget()
         PageLayout = QVBoxLayout(self)
         PageLayout.addWidget(self.stack)
 
         self.pagesDict = {
-            "Расход": ExpensesPage(),
-            "Поставка": SupplyPage()
+            "Расход": ExpensesPage(self.db),
+            "Поставка": SupplyPage(self.db)
         }
 
         for page in self.pagesDict.values():
@@ -67,8 +70,9 @@ class Pages(QWidget):
 
 
 class ExpensesPage(QWidget):
-    def __init__(self):
+    def __init__(self, db):
         super().__init__()
+        self.db = db
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(15)
@@ -78,9 +82,10 @@ class ExpensesPage(QWidget):
         name_group = QGroupBox()
         name_layout = QVBoxLayout(name_group)
 
-        name_layout.addWidget(QLabel("Введите название картриджа:"))
-        self.NameLine = QLineEdit()
-        name_layout.addWidget(self.NameLine)
+        name_layout.addWidget(QLabel("Выберите картридж"))
+        self.CartridgeName = QComboBox()
+        name_layout.addWidget(self.CartridgeName)
+        self.CartridgeName.addItems(self.db.GetCartridges())
 
         main_layout.addWidget(name_group)
 
@@ -156,8 +161,9 @@ class ExpensesPage(QWidget):
 
 
 class SupplyPage(QWidget):
-    def __init__(self):
+    def __init__(self, db):
         super().__init__()
+        self.db = db
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(15)
@@ -167,9 +173,10 @@ class SupplyPage(QWidget):
         name_group = QGroupBox()
         name_layout = QVBoxLayout(name_group)
 
-        name_layout.addWidget(QLabel("Выберите название картриджа"))
+        name_layout.addWidget(QLabel("Выберите картридж"))
         self.NameList = QComboBox()
-        self.NameList.addItems(["Asus", "Pantum", "HP", "Добавить новый"])
+        self.NameList.addItems(self.db.GetCartridges())
+        self.NameList.addItem("Добавить картридж")
         name_layout.addWidget(self.NameList)
 
         main_layout.addWidget(name_group)
@@ -178,7 +185,7 @@ class SupplyPage(QWidget):
         quantity_group = QGroupBox()
         quantity_layout = QVBoxLayout(quantity_group)
 
-        quantity_layout.addWidget(QLabel("Введите количество"))
+        quantity_layout.addWidget(QLabel("Введите количество:"))
         self.QuantityLine = QLineEdit()
         self.QuantityLine.setValidator(QIntValidator(0, 1_000_000))
         quantity_layout.addWidget(self.QuantityLine)
@@ -226,7 +233,7 @@ class SupplyPage(QWidget):
 
         quantity = int(quantity) if quantity else 0
 
-        #далее логика с Excel
+        #далее логика с БД
 
         self.showMessage("Расход записан", "green")
 
@@ -240,6 +247,48 @@ class SupplyPage(QWidget):
         self.ApproveText.show()
 
         QTimer.singleShot(2_000, self.ApproveText.hide)
+
+class DatabaseManager():
+    def __init__(self):
+        self.conn = sqlite3.connect("Data/database.db")
+        self.cursor = self.conn.cursor()
+        self.init_database()
+
+    def init_database(self):
+        self.cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Cartridges (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT UNIQUE
+                        )
+        """)
+        self.conn.commit()
+    
+        self.cursor.execute("SELECT COUNT(*) FROM Cartridges")
+        if self.cursor.fetchone()[0] == 0:
+            self.load_from_excel()
+
+    def load_from_excel(self):
+        from openpyxl import load_workbook
+
+        wb = load_workbook("Data/Cartridges.xlsx")
+        ws = wb.active
+
+        for name in ws.iter_rows(min_row=6, max_col=1, values_only=True):
+            if name[0]:
+                self.cursor.execute(
+                    "INSERT INTO Cartridges (name) VALUES (?)",
+                    (name[0],)
+                )
+            else: 
+                break
+        self.conn.commit()
+    
+    def GetCartridges(self):
+        self.cartridges = list()
+        self.cursor.execute("SELECT name FROM Cartridges")
+        for name in self.cursor.fetchall():
+            self.cartridges.append(name[0])
+        return self.cartridges
         
 
 app = QApplication(sys.argv)
