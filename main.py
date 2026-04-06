@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QComboBox, QVBoxLayout, QHBoxLayout, 
-                             QGroupBox, QStackedWidget, QLineEdit, QPushButton, QSizePolicy)
-from PyQt6.QtCore import Qt, QTimer
+                             QGroupBox, QDateEdit, QStackedWidget, QLineEdit, QPushButton, QSizePolicy)
+from PyQt6.QtCore import Qt, QTimer, QDate
 from PyQt6.QtGui import QIntValidator
 import sys
 import sqlite3
@@ -85,7 +85,9 @@ class ExpensesPage(QWidget):
         name_layout.addWidget(QLabel("Выберите картридж"))
         self.CartridgeName = QComboBox()
         name_layout.addWidget(self.CartridgeName)
-        self.CartridgeName.addItems(self.db.GetCartridges())
+        data = self.db.GetCartridges()
+        for name, id in data:
+            self.CartridgeName.addItem(name, id)
 
         main_layout.addWidget(name_group)
 
@@ -97,20 +99,29 @@ class ExpensesPage(QWidget):
         self.QuantityLine = QLineEdit()
         self.QuantityLine.setValidator(QIntValidator(0, 1_000_000))
         quantity_layout.addWidget(self.QuantityLine)
-        # Добавить дату расхода
 
         main_layout.addWidget(quantity_group)
 
-        # ===== Блок: Действие =====
+        # ===== Блок: Дата =====
+        date_group = QGroupBox()
+        date_layout = QVBoxLayout(date_group)
+
+        date_layout.addWidget(QLabel("Выберите дату"))
+        self.DateLine = QDateEdit()
+        self.DateLine.setCalendarPopup(True)
+        self.DateLine.setDate(QDate.currentDate())
+        date_layout.addWidget(self.DateLine)
+
+        main_layout.addWidget(date_group)
+
+        # ===== Блок: Кнопка =====
         action_group = QGroupBox()
-        action_group.setStyleSheet("border: none")
         action_layout = QVBoxLayout(action_group)
 
         write_btn = QPushButton("Записать")
         action_layout.addWidget(write_btn)
 
-        self.ApproveText = QLabel("Расход записан")
-        self.ApproveText.setStyleSheet("color: green; font-weight: bold;")
+        self.ApproveText = QLabel()
         self.ApproveText.hide()
         action_layout.addWidget(self.ApproveText)
 
@@ -119,7 +130,7 @@ class ExpensesPage(QWidget):
         main_layout.addWidget(action_group)
         main_layout.addStretch()
         
-        for group in (name_group, quantity_group, action_group):
+        for group in (name_group, quantity_group, date_group, action_group):
             group.setStyleSheet("""
                 QGroupBox {
                     border: none;
@@ -127,29 +138,14 @@ class ExpensesPage(QWidget):
             """)
 
     def btnClicked(self):
-        name = self.NameLine.text().strip()
         quantity = self.QuantityLine.text()
-
-        if not name and not quantity:
-            self.showMessage("Введите данные", "red")
-            return
-
-        if not name:
-            self.showMessage("Введите название картриджа", "red")
-            return
-
         if not quantity:
             self.showMessage("Введите количество", "red")
             return
 
-
-        quantity = int(quantity) if quantity else 0
-
-        #далее логика с Excel
-
+        quantity = int(quantity) if quantity else self.showMessage("Ошибка", "red")
+        self.addExpense()
         self.showMessage("Расход записан", "green")
-
-        self.NameLine.clear()
         self.QuantityLine.clear()
 
     def showMessage(self, text, color):
@@ -159,6 +155,12 @@ class ExpensesPage(QWidget):
         self.ApproveText.show()
 
         QTimer.singleShot(2_000, self.ApproveText.hide)
+
+    def addExpense(self):
+        cartridge_id = self.CartridgeName.currentData()
+        quantity = int(self.QuantityLine.text())
+        date = self.DateLine.date().toString("dd-MM-yyyy")
+        self.db.addExpense(quantity, cartridge_id, date)
 
 
 class SupplyPage(QWidget):
@@ -175,10 +177,12 @@ class SupplyPage(QWidget):
         name_layout = QVBoxLayout(name_group)
 
         name_layout.addWidget(QLabel("Выберите картридж"))
-        self.NameList = QComboBox()
-        self.NameList.addItems(self.db.GetCartridges())
-        self.NameList.addItem("Добавить картридж")
-        name_layout.addWidget(self.NameList)
+        self.CartridgeName = QComboBox()
+        data = self.db.GetCartridges()
+        for name, id in data:
+            self.CartridgeName.addItem(name, id)
+        self.CartridgeName.addItem("Добавить картридж")
+        name_layout.addWidget(self.CartridgeName)
 
         main_layout.addWidget(name_group)
 
@@ -254,13 +258,20 @@ class DatabaseManager():
     def __init__(self):
         self.conn = sqlite3.connect("Data/database.db")
         self.cursor = self.conn.cursor()
-        self.init_database()
 
-    def init_database(self):
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS Cartridges (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE
+                        )
+        """)
+        self.cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Expenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        quantity INTEGER,
+        cartridge_id INTEGER,
+        date DATE,
+        FOREIGN KEY (cartridge_id) REFERENCES Cartridges(id)
                         )
         """)
         self.conn.commit()
@@ -287,10 +298,16 @@ class DatabaseManager():
     
     def GetCartridges(self):
         self.cartridges = list()
-        self.cursor.execute("SELECT name FROM Cartridges")
-        for name in self.cursor.fetchall():
-            self.cartridges.append(name[0])
-        return self.cartridges
+        self.cursor.execute("SELECT id, name FROM Cartridges")
+        return [(name, id) for id, name in self.cursor.fetchall()]
+    
+    def addExpense(self, quantity, cartridge_id, date):
+        self.cursor.execute(
+            "INSERT INTO Expenses (quantity, cartridge_id, date) VALUES (?,?,?)",
+            (quantity, cartridge_id, date)
+        )
+        self.conn.commit()
+
         
 
 
