@@ -58,8 +58,8 @@ class Pages(QWidget):
         PageLayout.addWidget(self.stack)
 
         self.pagesDict = {
-            "Расход": ExpensesPage(self.db),
-            "Поставка": SupplyPage(self.db)
+            "Расход": OperationPage(self.db, "expense", "Расход"),
+            "Поставка": OperationPage(self.db, "supply", "Поставка")
         }
 
         for page in self.pagesDict.values():
@@ -68,11 +68,12 @@ class Pages(QWidget):
     def setPage(self, name):
         self.stack.setCurrentWidget(self.pagesDict[name])
 
-
-class ExpensesPage(QWidget):
-    def __init__(self, db):
+class OperationPage(QWidget):
+    def __init__(self, db, operation_type, title):
         super().__init__()
         self.db = db
+        self.operation_type = operation_type
+        self.title = title
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(15)
@@ -85,9 +86,7 @@ class ExpensesPage(QWidget):
         name_layout.addWidget(QLabel("Выберите картридж"))
         self.CartridgeName = QComboBox()
         name_layout.addWidget(self.CartridgeName)
-        data = self.db.GetCartridges()
-        for name, id in data:
-            self.CartridgeName.addItem(name, id)
+        self.load_cartriges()
 
         main_layout.addWidget(name_group)
 
@@ -137,15 +136,22 @@ class ExpensesPage(QWidget):
                 }
             """)
 
+    def load_cartriges(self):
+        data = self.db.GetCartridges()
+        for name, id in data:
+            self.CartridgeName.addItem(name, id)
+
     def btnClicked(self):
         quantity = self.QuantityLine.text()
-        if not quantity:
-            self.showMessage("Введите количество", "red")
-            return
-
         quantity = int(quantity) if quantity else self.showMessage("Ошибка", "red")
-        self.addExpense()
-        self.showMessage("Расход записан", "green")
+        if self.operation_type == "expense":
+            self.addExpense()
+            self.showMessage("Расход записан", "green")
+
+        elif self.operation_type == "supply":
+            self.addSupply()
+            self.showMessage("Поставка записана", "green")
+        
         self.QuantityLine.clear()
 
     def showMessage(self, text, color):
@@ -155,104 +161,19 @@ class ExpensesPage(QWidget):
         self.ApproveText.show()
 
         QTimer.singleShot(2_000, self.ApproveText.hide)
-
+    
     def addExpense(self):
         cartridge_id = self.CartridgeName.currentData()
         quantity = int(self.QuantityLine.text())
         date = self.DateLine.date().toString("dd-MM-yyyy")
         self.db.addExpense(quantity, cartridge_id, date)
+        
+    def addSupply(self):
+        cartridge_id = self.CartridgeName.currentData()
+        quantity = int(self.QuantityLine.text())
+        date = self.DateLine.date().toString("dd-MM-yyyy")
+        self.db.addSupply(quantity, cartridge_id, date)
 
-
-class SupplyPage(QWidget):
-    def __init__(self, db):
-        super().__init__()
-        self.db = db
-
-        main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(15)
-        main_layout.addStretch()
-
-        # ===== Блок: Название =====
-        name_group = QGroupBox()
-        name_layout = QVBoxLayout(name_group)
-
-        name_layout.addWidget(QLabel("Выберите картридж"))
-        self.CartridgeName = QComboBox()
-        data = self.db.GetCartridges()
-        for name, id in data:
-            self.CartridgeName.addItem(name, id)
-        self.CartridgeName.addItem("Добавить картридж")
-        name_layout.addWidget(self.CartridgeName)
-
-        main_layout.addWidget(name_group)
-
-        # ===== Блок: Количество =====
-        quantity_group = QGroupBox()
-        quantity_layout = QVBoxLayout(quantity_group)
-
-        quantity_layout.addWidget(QLabel("Введите количество:"))
-        self.QuantityLine = QLineEdit()
-        self.QuantityLine.setValidator(QIntValidator(0, 1_000_000))
-        quantity_layout.addWidget(self.QuantityLine)
-        # Добавить дату поставки
-
-        main_layout.addWidget(quantity_group)
-
-        # ===== Блок: Действие =====
-        action_group = QGroupBox()
-        action_layout = QVBoxLayout(action_group)
-
-        write_btn = QPushButton("Записать")
-        action_layout.addWidget(write_btn)
-
-        self.ApproveText = QLabel("Расход записан")
-        self.ApproveText.setStyleSheet("color: green; font-weight: bold;")
-        self.ApproveText.hide()
-        action_layout.addWidget(self.ApproveText)
-
-        main_layout.addWidget(action_group)
-        main_layout.addStretch()
-
-        for group in (name_group, quantity_group, action_group):
-            group.setStyleSheet("""
-                QGroupBox {
-                    border: none;
-                }
-            """)
-
-    def btnClicked(self):
-        name = self.NameLine.text().strip()
-        quantity = self.QuantityLine.text()
-
-        if not name and not quantity:
-            self.showMessage("Введите данные", "red")
-            return
-
-        if not name:
-            self.showMessage("Введите название картриджа", "red")
-            return
-
-        if not quantity:
-            self.showMessage("Введите количество", "red")
-            return
-
-
-        quantity = int(quantity) if quantity else 0
-
-        #далее логика с БД
-
-        self.showMessage("Расход записан", "green")
-
-        self.NameLine.clear()
-        self.QuantityLine.clear()
-
-    def showMessage(self, text, color):
-        self.ApproveText.hide()
-        self.ApproveText.setText(text)
-        self.ApproveText.setStyleSheet(f"color: {color}; font-weight: bold;")
-        self.ApproveText.show()
-
-        QTimer.singleShot(2_000, self.ApproveText.hide)
 
 class DatabaseManager():
     def __init__(self):
@@ -267,6 +188,15 @@ class DatabaseManager():
         """)
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS Expenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        quantity INTEGER,
+        cartridge_id INTEGER,
+        date DATE,
+        FOREIGN KEY (cartridge_id) REFERENCES Cartridges(id)
+                        )
+        """)
+        self.cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Supplies (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         quantity INTEGER,
         cartridge_id INTEGER,
@@ -297,7 +227,6 @@ class DatabaseManager():
         self.conn.commit()
     
     def GetCartridges(self):
-        self.cartridges = list()
         self.cursor.execute("SELECT id, name FROM Cartridges")
         return [(name, id) for id, name in self.cursor.fetchall()]
     
@@ -307,9 +236,15 @@ class DatabaseManager():
             (quantity, cartridge_id, date)
         )
         self.conn.commit()
+    
+    def addSupply(self, quantity, cartridge_id, date):
+        self.cursor.execute(
+            "INSERT INTO Supplies (quantity, cartridge_id, date) VALUES (?,?,?)",
+            (quantity, cartridge_id, date)
+        )
+        self.conn.commit()
 
         
-
 
 app = QApplication(sys.argv)
 window = MainWindow()
