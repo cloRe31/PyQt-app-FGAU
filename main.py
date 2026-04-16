@@ -58,8 +58,8 @@ class Pages(QWidget):
         PageLayout.addWidget(self.stack)
 
         self.pagesDict = {
-            "Расход": OperationPage(self.db, "expense", "Расход"),
-            "Поставка": OperationPage(self.db, "supply", "Поставка")
+            "Расход": ExpensesPage(self.db),
+            "Поставка": SupplyPage(self.db)
         }
 
         for page in self.pagesDict.values():
@@ -69,15 +69,13 @@ class Pages(QWidget):
         self.stack.setCurrentWidget(self.pagesDict[name])
 
 class OperationPage(QWidget):
-    def __init__(self, db, operation_type, title):
+    def __init__(self, db):
         super().__init__()
         self.db = db
-        self.operation_type = operation_type
-        self.title = title
 
-        main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(15)
-        main_layout.addStretch()
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setSpacing(15)
+        self.main_layout.addStretch()
 
         # ===== Блок: Название картриджа =====
         name_group = QGroupBox()
@@ -88,7 +86,7 @@ class OperationPage(QWidget):
         name_layout.addWidget(self.CartridgeName)
         self.load_cartriges()
 
-        main_layout.addWidget(name_group)
+        self.main_layout.addWidget(name_group)
 
         # ===== Блок: Количество =====
         quantity_group = QGroupBox()
@@ -99,7 +97,14 @@ class OperationPage(QWidget):
         self.QuantityLine.setValidator(QIntValidator(0, 1_000_000))
         quantity_layout.addWidget(self.QuantityLine)
 
-        main_layout.addWidget(quantity_group)
+        self.main_layout.addWidget(quantity_group)
+
+        # ===== Блок: Доп поля =====
+        self.extra_fields_layout = QVBoxLayout()
+        self.extra_fields_layout.setSpacing(15)
+
+        self.main_layout.addLayout(self.extra_fields_layout)
+        self.setup_extra_fields()
 
         # ===== Блок: Дата =====
         date_group = QGroupBox()
@@ -111,7 +116,7 @@ class OperationPage(QWidget):
         self.DateLine.setDate(QDate.currentDate())
         date_layout.addWidget(self.DateLine)
 
-        main_layout.addWidget(date_group)
+        self.main_layout.addWidget(date_group)
 
         # ===== Блок: Кнопка =====
         action_group = QGroupBox()
@@ -126,8 +131,8 @@ class OperationPage(QWidget):
 
         write_btn.clicked.connect(self.btnClicked)
 
-        main_layout.addWidget(action_group)
-        main_layout.addStretch()
+        self.main_layout.addWidget(action_group)
+        self.main_layout.addStretch()
         
         for group in (name_group, quantity_group, date_group, action_group):
             group.setStyleSheet("""
@@ -135,24 +140,27 @@ class OperationPage(QWidget):
                     border: none;
                 }
             """)
-
+        
     def load_cartriges(self):
         data = self.db.GetCartridges()
         for name, id in data:
             self.CartridgeName.addItem(name, id)
 
-    def btnClicked(self):
-        quantity = self.QuantityLine.text()
-        quantity = int(quantity) if quantity else self.showMessage("Ошибка", "red")
-        if self.operation_type == "expense":
-            self.addExpense()
-            self.showMessage("Расход записан", "green")
+    def get_common_data(self):
+        quantity = int(self.QuantityLine.text())
+        cartridge_id = self.CartridgeName.currentData()
+        date = self.DateLine.date().toString("yyyy-MM-dd")
+        return quantity, cartridge_id, date
 
-        elif self.operation_type == "supply":
-            self.addSupply()
-            self.showMessage("Поставка записана", "green")
-        
+    def btnClicked(self):
+        data = self.get_common_data()
+        self.process_operation(self, data)
+        #тут какая-то загвоздка
+        #ТАКЖЕ ДОПИСАТЬ ЛОГИКУ В SUPPLYPAGE ТАКУЮ ЖЕ КАК И EXPENSESPAGE
         self.QuantityLine.clear()
+    
+    def process_operation(self):
+        raise NotImplementedError
 
     def showMessage(self, text, color):
         self.ApproveText.hide()
@@ -161,18 +169,34 @@ class OperationPage(QWidget):
         self.ApproveText.show()
 
         QTimer.singleShot(2_000, self.ApproveText.hide)
-    
-    def addExpense(self):
-        cartridge_id = self.CartridgeName.currentData()
-        quantity = int(self.QuantityLine.text())
-        date = self.DateLine.date().toString("dd-MM-yyyy")
-        self.db.addExpense(quantity, cartridge_id, date)
         
     def addSupply(self):
         cartridge_id = self.CartridgeName.currentData()
         quantity = int(self.QuantityLine.text())
         date = self.DateLine.date().toString("dd-MM-yyyy")
         self.db.addSupply(quantity, cartridge_id, date)
+    
+    def setup_extra_fields(self):
+        pass
+
+class ExpensesPage(OperationPage):
+    def __init__(self, db):
+        super().__init__(db)
+
+    def process_operation(self, data):
+        quantity, cartridge_id, date = data
+        self.db.addExpense(quantity, cartridge_id, date)
+
+    def setup_extra_fields(self):
+        pass
+
+
+class SupplyPage(OperationPage):
+    def __init__(self, db):
+        super().__init__(db)
+
+    def setup_extra_fields(self):
+        pass
 
 
 class DatabaseManager():
