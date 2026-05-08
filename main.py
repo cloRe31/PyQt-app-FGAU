@@ -12,9 +12,9 @@ class MainWindow(QWidget):
         self.resize(1000, 600)
         self.setMinimumSize(600, 400)
 
-        HLayout = QHBoxLayout(self)
-        LVLayout = QVBoxLayout()
-        RVLayout = QVBoxLayout()
+        main_layout = QHBoxLayout(self)
+        left_layout = QVBoxLayout()
+        right_layout = QVBoxLayout()
 
         container_combobox = QHBoxLayout()
 
@@ -34,18 +34,18 @@ class MainWindow(QWidget):
         container_combobox.setStretch(0, 1)
         container_combobox.setStretch(1, 6)
         container_combobox.setStretch(2, 1)
-        LVLayout.addLayout(container_combobox)
+        left_layout.addLayout(container_combobox)
 
         self.db = DatabaseManager()
         self.pages = Pages(self.db)
-        RVLayout.addWidget(self.pages)
+        right_layout.addWidget(self.pages)
 
-        operation_combobox.currentTextChanged.connect(self.pages.setPage)
+        operation_combobox.currentTextChanged.connect(self.pages.set_page)
         
-        HLayout.addLayout(LVLayout)
-        HLayout.addLayout(RVLayout)
-        HLayout.setStretch(0, 1)
-        HLayout.setStretch(1, 1)
+        main_layout.addLayout(left_layout)
+        main_layout.addLayout(right_layout)
+        main_layout.setStretch(0, 1)
+        main_layout.setStretch(1, 1)
 
 
 class Pages(QWidget):
@@ -54,19 +54,19 @@ class Pages(QWidget):
         self.db = db
 
         self.stack = QStackedWidget()
-        PageLayout = QVBoxLayout(self)
-        PageLayout.addWidget(self.stack)
+        page_layout = QVBoxLayout(self)
+        page_layout.addWidget(self.stack)
 
-        self.pagesDict = {
+        self.pages_dict = {
             "Расход": ExpensesPage(self.db),
             "Поставка": SupplyPage(self.db)
         }
 
-        for page in self.pagesDict.values():
+        for page in self.pages_dict.values():
             self.stack.addWidget(page)
         
-    def setPage(self, name):
-        self.stack.setCurrentWidget(self.pagesDict[name])
+    def set_page(self, name):
+        self.stack.setCurrentWidget(self.pages_dict[name])
 
 class OperationPage(QWidget):
     def __init__(self, db):
@@ -82,9 +82,9 @@ class OperationPage(QWidget):
         name_layout = QVBoxLayout(name_group)
 
         name_layout.addWidget(QLabel("Выберите картридж"))
-        self.CartridgeName = QComboBox()
-        name_layout.addWidget(self.CartridgeName)
-        self.load_cartriges()
+        self.cartridge_name = QComboBox()
+        name_layout.addWidget(self.cartridge_name)
+        self.load_cartridges()
 
         self.main_layout.addWidget(name_group)
 
@@ -93,9 +93,9 @@ class OperationPage(QWidget):
         quantity_layout = QVBoxLayout(quantity_group)
 
         quantity_layout.addWidget(QLabel("Введите количество:"))
-        self.QuantityLine = QLineEdit()
-        self.QuantityLine.setValidator(QIntValidator(0, 1_000_000))
-        quantity_layout.addWidget(self.QuantityLine)
+        self.quantity_input = QLineEdit()
+        self.quantity_input.setValidator(QIntValidator(1, 1_000_000))
+        quantity_layout.addWidget(self.quantity_input)
 
         self.main_layout.addWidget(quantity_group)
 
@@ -111,10 +111,10 @@ class OperationPage(QWidget):
         date_layout = QVBoxLayout(date_group)
 
         date_layout.addWidget(QLabel("Выберите дату"))
-        self.DateLine = QDateEdit()
-        self.DateLine.setCalendarPopup(True)
-        self.DateLine.setDate(QDate.currentDate())
-        date_layout.addWidget(self.DateLine)
+        self.date_input = QDateEdit()
+        self.date_input.setCalendarPopup(True)
+        self.date_input.setDate(QDate.currentDate())
+        date_layout.addWidget(self.date_input)
 
         self.main_layout.addWidget(date_group)
 
@@ -125,11 +125,11 @@ class OperationPage(QWidget):
         write_btn = QPushButton("Записать")
         action_layout.addWidget(write_btn)
 
-        self.ApproveText = QLabel()
-        self.ApproveText.hide()
-        action_layout.addWidget(self.ApproveText)
+        self.approve_text = QLabel()
+        self.approve_text.hide()
+        action_layout.addWidget(self.approve_text)
 
-        write_btn.clicked.connect(self.btnClicked)
+        write_btn.clicked.connect(self.btn_clicked)
 
         self.main_layout.addWidget(action_group)
         self.main_layout.addStretch()
@@ -141,40 +141,51 @@ class OperationPage(QWidget):
                 }
             """)
         
-    def load_cartriges(self):
-        data = self.db.GetCartridges()
-        for name, id in data:
-            self.CartridgeName.addItem(name, id)
+    def load_cartridges(self):
+        data = self.db.get_cartridges()
+        for name, cartridge_id in data:
+            self.cartridge_name.addItem(name, cartridge_id)
 
-    def get_common_data(self):
-        quantity = int(self.QuantityLine.text())
-        cartridge_id = self.CartridgeName.currentData()
-        date = self.DateLine.date().toString("yyyy-MM-dd")
-        return quantity, cartridge_id, date
+    def get_raw_data(self):
+        return {
+            "quantity": self.quantity_input.text().strip(),
+            "cartridge_id": self.cartridge_name.currentData(),
+            "date": self.date_input.date().toString("yyyy-MM-dd")
+        }
+    
+    def validate_form(self, data):
+        if not data["quantity"]:
+            return "Введите количество"
+        
+    def normalize_data(self, data):
+        data["quantity"] = int(data["quantity"])
 
-    def btnClicked(self):
-        data = self.get_common_data()
-        self.process_operation(self, data)
-        #тут какая-то загвоздка
-        #ТАКЖЕ ДОПИСАТЬ ЛОГИКУ В SUPPLYPAGE ТАКУЮ ЖЕ КАК И EXPENSESPAGE
-        self.QuantityLine.clear()
+        return data
+        
+    def btn_clicked(self):
+        data = self.get_raw_data()
+        error = self.validate_form(data)
+
+        if error:
+            self.show_message(error, "red")
+            return
+        
+        self.normalize_data(data)
+        self.process_operation(data)
+
+        self.show_message("Успешно записано", "green")
+        self.quantity_input.clear()
     
     def process_operation(self):
         raise NotImplementedError
 
-    def showMessage(self, text, color):
-        self.ApproveText.hide()
-        self.ApproveText.setText(text)
-        self.ApproveText.setStyleSheet(f"color: {color}; font-weight: bold;")
-        self.ApproveText.show()
+    def show_message(self, text, color):
+        self.approve_text.hide()
+        self.approve_text.setText(text)
+        self.approve_text.setStyleSheet(f"color: {color}; font-weight: bold;")
+        self.approve_text.show()
 
-        QTimer.singleShot(2_000, self.ApproveText.hide)
-        
-    def addSupply(self):
-        cartridge_id = self.CartridgeName.currentData()
-        quantity = int(self.QuantityLine.text())
-        date = self.DateLine.date().toString("dd-MM-yyyy")
-        self.db.addSupply(quantity, cartridge_id, date)
+        QTimer.singleShot(2_000, self.approve_text.hide)
     
     def setup_extra_fields(self):
         pass
@@ -184,8 +195,7 @@ class ExpensesPage(OperationPage):
         super().__init__(db)
 
     def process_operation(self, data):
-        quantity, cartridge_id, date = data
-        self.db.addExpense(quantity, cartridge_id, date)
+        self.db.add_expense(data["quantity"], data["cartridge_id"], data["date"])
 
     def setup_extra_fields(self):
         pass
@@ -194,6 +204,9 @@ class ExpensesPage(OperationPage):
 class SupplyPage(OperationPage):
     def __init__(self, db):
         super().__init__(db)
+
+    def process_operation(self, data):
+        self.db.add_supply(data["quantity"], data["cartridge_id"], data["date"])
 
     def setup_extra_fields(self):
         pass
@@ -250,18 +263,18 @@ class DatabaseManager():
                 break
         self.conn.commit()
     
-    def GetCartridges(self):
+    def get_cartridges(self):
         self.cursor.execute("SELECT id, name FROM Cartridges")
-        return [(name, id) for id, name in self.cursor.fetchall()]
+        return [(name, cartridge_id) for cartridge_id, name in self.cursor.fetchall()]
     
-    def addExpense(self, quantity, cartridge_id, date):
+    def add_expense(self, quantity, cartridge_id, date):
         self.cursor.execute(
             "INSERT INTO Expenses (quantity, cartridge_id, date) VALUES (?,?,?)",
             (quantity, cartridge_id, date)
         )
         self.conn.commit()
     
-    def addSupply(self, quantity, cartridge_id, date):
+    def add_supply(self, quantity, cartridge_id, date):
         self.cursor.execute(
             "INSERT INTO Supplies (quantity, cartridge_id, date) VALUES (?,?,?)",
             (quantity, cartridge_id, date)
