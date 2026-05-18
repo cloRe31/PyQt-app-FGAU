@@ -1,72 +1,30 @@
 from PyQt6.QtWidgets import (QApplication, QWidget, QLabel, QComboBox, QVBoxLayout, QHBoxLayout, 
-                             QGroupBox, QDateEdit, QStackedWidget, QLineEdit, QPushButton, QSizePolicy)
+                             QGroupBox, QDateEdit, QMainWindow, QStackedWidget, QTabWidget, QLineEdit, QPushButton, QSizePolicy)
 from PyQt6.QtCore import Qt, QTimer, QDate
 from PyQt6.QtGui import QIntValidator
 import sys
 import sqlite3
 
-class MainWindow(QWidget):
+class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.db = DatabaseManager()
 
         self.resize(1000, 600)
         self.setMinimumSize(600, 400)
 
-        main_layout = QHBoxLayout(self)
-        left_layout = QVBoxLayout()
-        right_layout = QVBoxLayout()
+        central_widget = QWidget()
 
-        container_combobox = QHBoxLayout()
+        main_layout = QHBoxLayout(central_widget)
 
-        operation_combobox = QComboBox()
-        operation_combobox.addItems(["Расход", "Поставка"])
-        operation_combobox.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Fixed
-        )
-        operation_combobox.setMinimumWidth(200)
-        operation_combobox.setMaximumWidth(400)
-
-        container_combobox.addStretch()
-        container_combobox.addWidget(operation_combobox)
-        container_combobox.addStretch()
-
-        container_combobox.setStretch(0, 1)
-        container_combobox.setStretch(1, 6)
-        container_combobox.setStretch(2, 1)
-        left_layout.addLayout(container_combobox)
-
-        self.db = DatabaseManager()
-        self.pages = Pages(self.db)
-        right_layout.addWidget(self.pages)
-
-        operation_combobox.currentTextChanged.connect(self.pages.set_page)
-        
-        main_layout.addLayout(left_layout)
-        main_layout.addLayout(right_layout)
-        main_layout.setStretch(0, 1)
-        main_layout.setStretch(1, 1)
+        self.tabs = QTabWidget()
+        self.tabs.addTab(ExpensesPage(self.db), "Расход")
+        self.tabs.addTab(SupplyPage(self.db), "Поставка")
 
 
-class Pages(QWidget):
-    def __init__(self, db):
-        super().__init__()
-        self.db = db
+        main_layout.addWidget(self.tabs)
+        self.setCentralWidget(central_widget)
 
-        self.stack = QStackedWidget()
-        page_layout = QVBoxLayout(self)
-        page_layout.addWidget(self.stack)
-
-        self.pages_dict = {
-            "Расход": ExpensesPage(self.db),
-            "Поставка": SupplyPage(self.db)
-        }
-
-        for page in self.pages_dict.values():
-            self.stack.addWidget(page)
-        
-    def set_page(self, name):
-        self.stack.setCurrentWidget(self.pages_dict[name])
 
 class OperationPage(QWidget):
     def __init__(self, db):
