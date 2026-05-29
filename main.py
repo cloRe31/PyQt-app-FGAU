@@ -31,9 +31,8 @@ class OperationPage(QWidget):
         super().__init__()
         self.db = db
 
-        self.main_layout = QVBoxLayout(self)
-        self.main_layout.setSpacing(15)
-        self.main_layout.addStretch()
+        main_layout = QVBoxLayout(self)
+        self.container_layout = QVBoxLayout()
 
         # ===== Блок: Название картриджа =====
         name_group = QGroupBox()
@@ -44,7 +43,7 @@ class OperationPage(QWidget):
         name_layout.addWidget(self.cartridge_name)
         self.load_cartridges()
 
-        self.main_layout.addWidget(name_group)
+        self.container_layout.addWidget(name_group)
 
         # ===== Блок: Количество =====
         quantity_group = QGroupBox()
@@ -55,13 +54,9 @@ class OperationPage(QWidget):
         self.quantity_input.setValidator(QIntValidator(1, 1_000_000))
         quantity_layout.addWidget(self.quantity_input)
 
-        self.main_layout.addWidget(quantity_group)
+        self.container_layout.addWidget(quantity_group)
 
         # ===== Блок: Доп поля =====
-        self.extra_fields_layout = QVBoxLayout()
-        self.extra_fields_layout.setSpacing(15)
-
-        self.main_layout.addLayout(self.extra_fields_layout)
         self.setup_extra_fields()
 
         # ===== Блок: Дата =====
@@ -74,7 +69,7 @@ class OperationPage(QWidget):
         self.date_input.setDate(QDate.currentDate())
         date_layout.addWidget(self.date_input)
 
-        self.main_layout.addWidget(date_group)
+        self.container_layout.addWidget(date_group)
 
         # ===== Блок: Кнопка =====
         action_group = QGroupBox()
@@ -89,15 +84,20 @@ class OperationPage(QWidget):
 
         write_btn.clicked.connect(self.btn_clicked)
 
-        self.main_layout.addWidget(action_group)
-        self.main_layout.addStretch()
+        self.container_layout.addWidget(action_group)
+
+        form_widget = QWidget()
+        form_widget.setLayout(self.container_layout)
+        form_widget.setMaximumWidth(800)
+        form_widget.setMinimumWidth(500)
         
-        for group in (name_group, quantity_group, date_group, action_group):
-            group.setStyleSheet("""
-                QGroupBox {
-                    border: none;
-                }
-            """)
+        main_layout.addWidget(form_widget, alignment=Qt.AlignmentFlag.AlignCenter)
+        
+        self.setStyleSheet("""
+            QGroupBox {
+                border: none;
+            }
+        """)
         
     def load_cartridges(self):
         data = self.db.get_cartridges()
@@ -118,7 +118,6 @@ class OperationPage(QWidget):
     def normalize_data(self, data):
         data["quantity"] = int(data["quantity"])
 
-        return data
         
     def btn_clicked(self):
         data = self.get_raw_data()
@@ -167,7 +166,15 @@ class SupplyPage(OperationPage):
         self.db.add_supply(data["quantity"], data["cartridge_id"], data["date"])
 
     def setup_extra_fields(self):
-        pass
+        #Блок серийного номера картриджа
+        serial_number_group = QGroupBox()
+        serial_number_layout = QVBoxLayout(serial_number_group)
+
+        serial_number_layout.addWidget(QLabel("Введите количество:"))
+        serial_number_input = QLineEdit()
+        serial_number_layout.addWidget(serial_number_input)
+
+        self.container_layout.addWidget(serial_number_group)
 
 
 class DatabaseManager():
