@@ -163,18 +163,27 @@ class SupplyPage(OperationPage):
         super().__init__(db)
 
     def process_operation(self, data):
-        self.db.add_supply(data["quantity"], data["cartridge_id"], data["date"])
+        self.db.add_supply(data["quantity"], data["cartridge_id"], data["date"], data["serial_number"])
 
     def setup_extra_fields(self):
         #Блок серийного номера картриджа
         serial_number_group = QGroupBox()
         serial_number_layout = QVBoxLayout(serial_number_group)
 
-        serial_number_layout.addWidget(QLabel("Введите количество:"))
-        serial_number_input = QLineEdit()
-        serial_number_layout.addWidget(serial_number_input)
+        serial_number_layout.addWidget(QLabel("Введите серийный номер:"))
+        self.serial_number_input = QLineEdit()
+        serial_number_layout.addWidget(self.serial_number_input)
 
         self.container_layout.addWidget(serial_number_group)
+
+    def get_raw_data(self):
+        data = super().get_raw_data()
+        data["serial_number"] = self.serial_number_input.text().strip()
+        return data
+
+    def btn_clicked(self):
+        super().btn_clicked()
+        self.serial_number_input.clear()
 
 
 class DatabaseManager():
@@ -203,6 +212,7 @@ class DatabaseManager():
         quantity INTEGER,
         cartridge_id INTEGER,
         date DATE,
+        serial_number TEXT UNIQUE,
         FOREIGN KEY (cartridge_id) REFERENCES Cartridges(id)
                         )
         """)
@@ -239,10 +249,10 @@ class DatabaseManager():
         )
         self.conn.commit()
     
-    def add_supply(self, quantity, cartridge_id, date):
+    def add_supply(self, quantity, cartridge_id, date, serial_number):
         self.cursor.execute(
-            "INSERT INTO Supplies (quantity, cartridge_id, date) VALUES (?,?,?)",
-            (quantity, cartridge_id, date)
+            "INSERT INTO Supplies (quantity, cartridge_id, date, serial_number) VALUES (?,?,?,?)",
+            (quantity, cartridge_id, date, serial_number)
         )
         self.conn.commit()
 
